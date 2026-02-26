@@ -285,6 +285,14 @@
                 } catch (e) {}
             };
 
+            const handlePlayVideo = (url) => {
+                if (url) {
+                    window.open(url, '_blank');
+                } else {
+                    // URL이 없을 경우의 처리
+                }
+            };
+
             // --- Movie Card Component ---
             const MovieCard = ({ movie, small = false }) => (
                 React.createElement('div', { 
@@ -323,7 +331,6 @@
                     return () => clearInterval(timer);
                 }, [bannerMovies.length]);
 
-                // Row filtering logic
                 const row1Movies = filteredMovies.filter(m => m.row1);
                 const row2Movies = filteredMovies.filter(m => m.row2);
 
@@ -338,8 +345,13 @@
                                     React.createElement('h2', { className: "text-5xl md:text-6xl font-black text-white mb-4 tracking-tighter" }, movie.title),
                                     React.createElement('p', { className: "text-gray-200 text-sm mb-8 line-clamp-2 opacity-80" }, movie.description),
                                     React.createElement('div', { className: "flex gap-4" },
-                                        React.createElement('button', { onClick: () => handleMovieClick(movie), className: "flex items-center gap-3 bg-white text-black px-8 py-3.5 rounded-xl font-black text-sm hover:bg-orange-500 hover:text-white transition-all shadow-xl hover:scale-105 active:scale-95" }, React.createElement(Icon, { name: "play", size: 16, fill: "currentColor" }), " 감상하기"),
-                                        React.createElement('button', { onClick: () => handleMovieClick(movie), className: "flex items-center gap-3 bg-white/10 backdrop-blur-md text-white px-8 py-3.5 rounded-xl font-black text-sm hover:bg-white/20 transition-all border border-white/10" }, React.createElement(Icon, { name: "info", size: 16 }), " 상세 정보")
+                                        React.createElement('button', { 
+                                            onClick: () => handlePlayVideo(movie.videoUrl), 
+                                            className: "flex items-center gap-3 bg-white text-black px-8 py-3.5 rounded-xl font-black text-sm hover:bg-orange-500 hover:text-white transition-all shadow-xl hover:scale-105 active:scale-95" 
+                                        }, React.createElement(Icon, { name: "play", size: 16, fill: "currentColor" }), " 감상하기"),
+                                        React.createElement('button', { onClick: () => handleMovieClick(movie), className: "flex items-center gap-3 bg-white/10 backdrop-blur-md text-white px-8 py-3.5 rounded-xl font-black text-sm hover:bg-white/20 transition-all border border-white/10" },
+                                            React.createElement(Icon, { name: "info", size: 16 }), " 상세 정보"
+                                        )
                                     )
                                 )
                             )
@@ -349,7 +361,6 @@
                         )
                     ),
                     
-                    // Row 1 Category
                     React.createElement('div', { className: "mb-16" },
                         React.createElement(EditableTitle, { id: "movies", currentTitle: categoryTitles.movies }),
                         React.createElement('div', { className: "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-6 gap-y-12" },
@@ -358,7 +369,6 @@
                         row1Movies.length === 0 && React.createElement('p', { className: "text-zinc-600 italic text-sm py-10" }, "이 열에 등록된 작품이 없습니다.")
                     ),
 
-                    // Row 2 Category (Smaller Grid)
                     !searchQuery && React.createElement('div', { className: "mb-20" },
                         React.createElement(EditableTitle, { id: "event", currentTitle: categoryTitles.event }),
                         React.createElement('div', { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-x-4 gap-y-10" },
@@ -367,7 +377,6 @@
                         row2Movies.length === 0 && React.createElement('p', { className: "text-zinc-600 italic text-sm py-10" }, "이 열에 등록된 작품이 없습니다.")
                     ),
 
-                    // Cast List
                     !searchQuery && React.createElement('div', { className: "mt-20" },
                         React.createElement(EditableTitle, { id: "cast", currentTitle: categoryTitles.cast, onAdd: () => { setEditingCast(null); setIsCastEditModalOpen(true); } }),
                         React.createElement('div', { className: "flex gap-10 overflow-x-auto pb-6 custom-scrollbar" },
@@ -400,7 +409,10 @@
                                 React.createElement('span', null, selectedMovie.duration)
                             ),
                             React.createElement('div', { className: "flex flex-wrap items-center gap-4" },
-                                React.createElement('button', { className: "flex items-center gap-3 bg-white text-black px-8 py-3.5 rounded-2xl font-black text-sm hover:bg-orange-500 hover:text-white transition-all shadow-2xl" }, React.createElement(Icon, { name: "play", size: 18, fill: "currentColor", className: "ml-1" }), " 재생하기"),
+                                React.createElement('button', { 
+                                    onClick: () => handlePlayVideo(selectedMovie.videoUrl),
+                                    className: "flex items-center gap-3 bg-white text-black px-8 py-3.5 rounded-2xl font-black text-sm hover:bg-orange-500 hover:text-white transition-all shadow-2xl active:scale-95" 
+                                }, React.createElement(Icon, { name: "play", size: 18, fill: "currentColor", className: "ml-1" }), " 재생하기"),
                                 React.createElement('button', { onClick: () => setIsCommentModalOpen(true), className: "flex items-center gap-3 bg-white/10 backdrop-blur-xl text-white px-6 py-3.5 rounded-2xl font-black text-sm hover:bg-white/20 transition-all border border-white/10" }, React.createElement(Icon, { name: "message-square", size: 18 }), " 감상평 작성"),
                                 isAdmin && React.createElement('div', { className: "flex gap-2" },
                                     React.createElement('button', { onClick: () => { setEditingMovie(selectedMovie); setIsEditModalOpen(true); }, className: "p-3 bg-blue-600/20 text-blue-400 border border-blue-600/30 rounded-2xl hover:bg-blue-600 shadow-lg" }, React.createElement(Icon, { name: "edit", size: 16 })),
@@ -460,7 +472,7 @@
                         React.createElement('button', { onClick: () => setView('home'), className: "flex items-center gap-2 text-gray-500 hover:text-white transition-colors group" }, React.createElement(Icon, { name: "chevron-left", size: 20, className: "group-hover:-translate-x-1 transition-transform" }), " 뒤로 가기"),
                         isAdmin && React.createElement('div', { className: "flex gap-2" },
                             React.createElement('button', { onClick: () => { setEditingCast(selectedCast); setIsCastEditModalOpen(true); }, className: "flex items-center gap-2 bg-blue-600/20 text-blue-400 px-4 py-2 rounded-xl border border-blue-600/30 hover:bg-blue-600 hover:text-white transition-all text-xs font-bold" }, React.createElement(Icon, { name: "edit", size: 14 }), " 프로필 수정"),
-                            React.createElement('button', { onClick: () => deleteCast(selectedCast.id), className: "flex items-center gap-2 bg-red-600/20 text-red-400 px-4 py-2 rounded-xl border border-red-600/30 hover:bg-red-600 hover:text-white transition-all text-xs font-bold" }, React.createElement(Icon, { name: "trash", size: 14 }), " 인물 삭제")
+                            React.createElement('button', { onClick: () => deleteCast(selectedCast.id), className: "flex items-center gap-2 bg-red-600/20 text-red-400 px-4 py-2 rounded-xl border border-blue-600/30 hover:bg-red-600 hover:text-white transition-all text-xs font-bold" }, React.createElement(Icon, { name: "trash", size: 14 }), " 인물 삭제")
                         )
                     ),
                     React.createElement('div', { className: "flex flex-col md:flex-row gap-12 border-b border-white/10 pb-12" },
@@ -564,11 +576,10 @@
             };
 
             const EditModal = () => {
-                const [form, setForm] = useState(editingMovie || { title: "", year: "2024", genres: [], ageRating: "15+", duration: "", description: "", poster: "", backdrop: "", director: "", cast: "", isBanner: false, row1: true, row2: false });
+                const [form, setForm] = useState(editingMovie || { title: "", year: "2024", genres: [], ageRating: "15+", duration: "", description: "", poster: "", backdrop: "", director: "", cast: "", isBanner: false, row1: true, row2: false, videoUrl: "" });
                 const genreOptions = ["SF", "액션", "로맨스", "스릴러", "드라마", "공포", "애니메이션", "뮤지컬"];
                 const toggleGenre = (g) => setForm(f => ({ ...f, genres: f.genres.includes(g) ? f.genres.filter(i => i !== g) : [...f.genres, g] }));
                 
-                // At least one row must be checked
                 const isSaveDisabled = !form.row1 && !form.row2;
 
                 return React.createElement('div', { className: "fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-xl" },
@@ -578,7 +589,6 @@
                         React.createElement('div', { className: "p-8 overflow-y-auto space-y-8 custom-scrollbar" },
                             React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-6" },
                                 
-                                // Row selection checkboxes
                                 React.createElement('div', { className: "col-span-2 grid grid-cols-2 gap-4" },
                                     React.createElement('div', { className: `flex items-center gap-3 p-4 rounded-2xl border transition-all ${form.row1 ? 'bg-sky-500/10 border-sky-500/40' : 'bg-zinc-900 border-white/5'}` },
                                         React.createElement('input', { type: "checkbox", id: "row1", className: "w-5 h-5 accent-sky-500 cursor-pointer", checked: form.row1, onChange: e => setForm({...form, row1: e.target.checked}) }),
@@ -599,6 +609,15 @@
                                 React.createElement('input', { placeholder: "제목", className: "bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none font-bold", value: form.title, onChange: e => setForm({...form, title: e.target.value}) }),
                                 React.createElement('div', { className: "grid grid-cols-2 gap-3" }, React.createElement('input', { placeholder: "연도", className: "bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none font-bold", value: form.year, onChange: e => setForm({...form, year: e.target.value}) }), React.createElement('input', { placeholder: "시간", className: "bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none font-bold", value: form.duration, onChange: e => setForm({...form, duration: e.target.value}) })),
                                 React.createElement('textarea', { placeholder: "시놉시스", className: "col-span-2 bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white h-32 resize-none outline-none leading-relaxed", value: form.description, onChange: e => setForm({...form, description: e.target.value}) }),
+                                
+                                // Video URL Input added here
+                                React.createElement('input', { 
+                                    placeholder: "재생 링크 (Hyperlink URL)", 
+                                    className: "col-span-2 bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none font-bold text-xs", 
+                                    value: form.videoUrl || "", 
+                                    onChange: e => setForm({...form, videoUrl: e.target.value}) 
+                                }),
+
                                 React.createElement('input', { placeholder: "감독", className: "bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none font-bold", value: form.director, onChange: e => setForm({...form, director: e.target.value}) }),
                                 React.createElement('input', { placeholder: "출연진 (쉼표 구분)", className: "bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none font-bold", value: form.cast, onChange: e => setForm({...form, cast: e.target.value}) }),
                                 React.createElement('input', { placeholder: "포스터 URL", className: "bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none text-xs", value: form.poster, onChange: e => setForm({...form, poster: e.target.value}) }),
@@ -655,4 +674,3 @@
     </script>
 </body>
 </html>
-
