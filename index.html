@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUGANEMA | 슈가 1주년 시네마</title>
+    <title>SUGANEMA | 영화 그 이상의 감동</title>
     
     <!-- 라이브러리 로드: React, ReactDOM, Firebase -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -41,31 +41,25 @@
         import { getFirestore, doc, setDoc, deleteDoc, collection, addDoc, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase Configuration
-        // 우선적으로 환경 변수(__firebase_config)를 사용하고, 없을 경우 사용자가 제공한 설정을 사용합니다.
-        const firebaseConfig = typeof __firebase_config !== 'undefined' 
-            ? JSON.parse(__firebase_config) 
-            : {
-                apiKey: "AIzaSyBu3qzxD9f60Eh_znbgw9qYMptVh_XEXPc",
-                authDomain: "suganema-a49fd.firebaseapp.com",
-                databaseURL: "https://suganema-a49fd-default-rtdb.firebaseio.com",
-                projectId: "suganema-a49fd",
-                storageBucket: "suganema-a49fd.firebasestorage.app",
-                messagingSenderId: "990826168324",
-                appId: "1:990826168324:web:d4d93e16e83ba3f5d07551"
-            };
+        const firebaseConfig = {
+            apiKey: "AIzaSyBu3qzxD9f60Eh_znbgw9qYMptVh_XEXPc",
+            authDomain: "suganema-a49fd.firebaseapp.com",
+            databaseURL: "https://suganema-a49fd-default-rtdb.firebaseio.com",
+            projectId: "suganema-a49fd",
+            storageBucket: "suganema-a49fd.firebasestorage.app",
+            messagingSenderId: "990826168324",
+            appId: "1:990826168324:web:d4d93e16e83ba3f5d07551"
+        };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-
-        // App ID for Firestore paths (RULE 1)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'suganema-project';
+        const appId = "suganema-a49fd";
 
         const { useState, useMemo, useEffect, useRef } = React;
 
-        // --- 아이콘 컴포넌트 ---
-        const Icon = ({ name, size = 24, strokeWidth = 2, className = "", fill = "none" }) => {
+        // --- 아이콘 컴포넌트 (onClick 이벤트 전달 수정) ---
+        const Icon = ({ name, size = 24, strokeWidth = 2, className = "", fill = "none", ...props }) => {
             const icons = {
                 search: React.createElement('path', { d: "M21 21l-4.35-4.35M19 11a8 8 0 11-16 0 8 8 0 0116 0z" }),
                 star: React.createElement('path', { d: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" }),
@@ -108,11 +102,12 @@
             return React.createElement('svg', {
                 width: size, height: size, viewBox: "0 0 24 24", fill: fill, 
                 stroke: "currentColor", strokeWidth: strokeWidth, 
-                strokeLinecap: "round", strokeLinejoin: "round", className: className
+                strokeLinecap: "round", strokeLinejoin: "round", className: className,
+                ...props // 여기서 onClick 등 전달받은 속성을 svg 태그에 바인딩합니다.
             }, icons[name] || null);
         };
 
-        // --- Navbar Component ---
+        // --- Navbar ---
         const Navbar = ({ view, setView, setSearchQuery, searchQuery, isAdmin, setIsAuthModalOpen, setIsEditModalOpen, setEditingMovie }) => (
             React.createElement('nav', { className: "fixed top-0 w-full z-50 bg-black/60 backdrop-blur-xl px-6 py-4 flex items-center justify-between border-b border-white/5 transition-all duration-300" },
                 React.createElement('div', { className: "flex items-center gap-8" },
@@ -147,7 +142,7 @@
             )
         );
 
-        // --- Main App Component ---
+        // --- 메인 App ---
         const App = () => {
             const [user, setUser] = useState(null);
             const [view, setView] = useState('home'); 
@@ -171,16 +166,11 @@
             });
             const [editingCategoryId, setEditingCategoryId] = useState(null);
 
-            // Step 1: Authentication (RULE 3)
+            // Step 1: Authentication
             useEffect(() => {
                 const initAuth = async () => {
                     try {
-                        // Canvas 환경 토큰이 있으면 사용, 아니면 익명 로그인 시도
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
+                        await signInAnonymously(auth);
                     } catch (e) {
                         console.error("Auth Error", e);
                     }
@@ -190,7 +180,7 @@
                 return () => unsubscribe();
             }, []);
 
-            // Step 2: Data Listeners (RULE 1 & 2)
+            // Step 2: Firestore Sync
             useEffect(() => {
                 if (!user) return;
 
@@ -199,20 +189,17 @@
                 const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
                 const configRef = collection(db, 'artifacts', appId, 'public', 'data', 'config');
 
-                const unsubMovies = onSnapshot(moviesRef, 
-                    (ss) => setMovies(ss.docs.map(doc => ({ ...doc.data(), id: doc.id }))),
-                    (e) => console.error("Movies Fetch Error", e)
-                );
+                const unsubMovies = onSnapshot(moviesRef, (ss) => {
+                    setMovies(ss.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+                }, (e) => console.error("Movies Fetch Error", e));
 
-                const unsubCast = onSnapshot(castRef, 
-                    (ss) => setCastList(ss.docs.map(doc => ({ ...doc.data(), id: doc.id }))),
-                    (e) => console.error("Cast Fetch Error", e)
-                );
+                const unsubCast = onSnapshot(castRef, (ss) => {
+                    setCastList(ss.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+                }, (e) => console.error("Cast Fetch Error", e));
 
-                const unsubComments = onSnapshot(commentsRef, 
-                    (ss) => setComments(ss.docs.map(doc => ({ ...doc.data(), id: doc.id }))),
-                    (e) => console.error("Comments Fetch Error", e)
-                );
+                const unsubComments = onSnapshot(commentsRef, (ss) => {
+                    setComments(ss.docs.map(doc => ({ ...doc.data(), id: doc.id })));
+                }, (e) => console.error("Comments Fetch Error", e));
 
                 const unsubConfig = onSnapshot(configRef, (ss) => {
                     const data = {};
@@ -246,50 +233,56 @@
             const handleAdminLogin = (password) => { if (password === "1111") { setIsAdmin(true); setIsAuthModalOpen(false); } else alert("비밀번호 오류"); };
             
             const deleteComment = async (id) => { 
+                if (!auth.currentUser) return;
                 if(window.confirm("삭제하시겠습니까?")) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'comments', id));
+                    try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'comments', id)); } catch (e) {}
                 }
             };
             const deleteMovie = async (id) => { 
+                if (!auth.currentUser) return;
                 if (window.confirm("정말로 이 작품을 삭제하시겠습니까?")) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'movies', id));
-                    setView('home');
+                    try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'movies', id)); setView('home'); } catch (e) {}
                 }
             };
             const deleteCast = async (id) => { 
+                if (!auth.currentUser) return;
                 if (window.confirm("정말로 이 인물을 삭제하시겠습니까?")) {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'cast', id));
-                    setView('home');
+                    try { await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'cast', id)); setView('home'); } catch (e) {}
                 }
             };
 
             const saveMovie = async (movieData) => {
-                const moviesRef = collection(db, 'artifacts', appId, 'public', 'data', 'movies');
-                if (movieData.id) {
-                    const { id, ...data } = movieData;
-                    await setDoc(doc(moviesRef, id), data);
-                } else {
-                    await addDoc(moviesRef, movieData);
-                }
-                setIsEditModalOpen(false);
+                if (!auth.currentUser) return;
+                try {
+                    const moviesRef = collection(db, 'artifacts', appId, 'public', 'data', 'movies');
+                    if (movieData.id) {
+                        const { id, ...data } = movieData;
+                        await setDoc(doc(moviesRef, id), data);
+                    } else { await addDoc(moviesRef, movieData); }
+                    setIsEditModalOpen(false);
+                } catch (e) { console.error("Save Movie Error", e); }
             };
 
             const saveCast = async (castData) => {
-                const castRef = collection(db, 'artifacts', appId, 'public', 'data', 'cast');
-                if (castData.id) {
-                    const { id, ...data } = castData;
-                    await setDoc(doc(castRef, id), data);
-                } else {
-                    await addDoc(castRef, castData);
-                }
-                setIsCastEditModalOpen(false);
-                if (selectedCast && selectedCast.id === castData.id) setSelectedCast(castData);
+                if (!auth.currentUser) return;
+                try {
+                    const castRef = collection(db, 'artifacts', appId, 'public', 'data', 'cast');
+                    if (castData.id) {
+                        const { id, ...data } = castData;
+                        await setDoc(doc(castRef, id), data);
+                    } else { await addDoc(castRef, castData); }
+                    setIsCastEditModalOpen(false);
+                    if (selectedCast && selectedCast.id === castData.id) setSelectedCast(castData);
+                } catch (e) { console.error("Save Cast Error", e); }
             };
 
             const handleCategoryTitleChange = async (id, newTitle) => {
-                const configDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', id);
-                await setDoc(configDocRef, { title: newTitle });
-                setEditingCategoryId(null);
+                if (!auth.currentUser) return;
+                try {
+                    const configDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', id);
+                    await setDoc(configDocRef, { title: newTitle });
+                    setEditingCategoryId(null);
+                } catch (e) {}
             };
 
             // --- HomeView ---
@@ -313,20 +306,14 @@
                                     React.createElement('h2', { className: "text-5xl md:text-6xl font-black text-white mb-4 tracking-tighter" }, movie.title),
                                     React.createElement('p', { className: "text-gray-200 text-sm mb-8 line-clamp-2 opacity-80" }, movie.description),
                                     React.createElement('div', { className: "flex gap-4" },
-                                        React.createElement('button', { onClick: () => handleMovieClick(movie), className: "flex items-center gap-3 bg-white text-black px-8 py-3.5 rounded-xl font-black text-sm hover:bg-orange-500 hover:text-white transition-all shadow-xl hover:scale-105 active:scale-95" },
-                                            React.createElement(Icon, { name: "play", size: 16, fill: "currentColor" }), " 감상하기"
-                                        ),
-                                        React.createElement('button', { onClick: () => handleMovieClick(movie), className: "flex items-center gap-3 bg-white/10 backdrop-blur-md text-white px-8 py-3.5 rounded-xl font-black text-sm hover:bg-white/20 transition-all border border-white/10" },
-                                            React.createElement(Icon, { name: "info", size: 16 }), " 상세 정보"
-                                        )
+                                        React.createElement('button', { onClick: () => handleMovieClick(movie), className: "flex items-center gap-3 bg-white text-black px-8 py-3.5 rounded-xl font-black text-sm hover:bg-orange-500 hover:text-white transition-all shadow-xl hover:scale-105 active:scale-95" }, React.createElement(Icon, { name: "play", size: 16, fill: "currentColor" }), " 감상하기"),
+                                        React.createElement('button', { onClick: () => handleMovieClick(movie), className: "flex items-center gap-3 bg-white/10 backdrop-blur-md text-white px-8 py-3.5 rounded-xl font-black text-sm hover:bg-white/20 transition-all border border-white/10" }, React.createElement(Icon, { name: "info", size: 16 }), " 상세 정보")
                                     )
                                 )
                             )
                         )),
                         bannerMovies.length > 1 && React.createElement('div', { className: "absolute bottom-12 right-12 flex gap-3 z-20" },
-                            bannerMovies.map((_, idx) => (
-                                React.createElement('div', { key: idx, onClick: () => setCurrentIndex(idx), className: `h-1.5 rounded-full transition-all duration-500 cursor-pointer ${idx === currentIndex ? 'w-10 bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]' : 'w-3 bg-white/20 hover:bg-white/40'}` })
-                            ))
+                            bannerMovies.map((_, idx) => React.createElement('div', { key: idx, onClick: () => setCurrentIndex(idx), className: `h-1.5 rounded-full transition-all duration-500 cursor-pointer ${idx === currentIndex ? 'w-10 bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]' : 'w-3 bg-white/20 hover:bg-white/40'}` }))
                         )
                     ),
                     React.createElement('div', { className: "mb-16" },
@@ -337,19 +324,14 @@
                                     React.createElement('div', { className: "relative aspect-[2/3] overflow-hidden rounded-xl shadow-2xl border border-white/5 bg-zinc-900" },
                                         React.createElement('img', { src: movie.poster, alt: movie.title, className: "w-full h-full object-cover transition-transform duration-700 group-hover:scale-110", loading: "lazy" }),
                                         React.createElement('div', { className: "absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" },
-                                            React.createElement('div', { className: "bg-orange-500 shadow-lg shadow-orange-500/40 rounded-full p-4 transform scale-90 group-hover:scale-100 transition-transform duration-300" },
-                                                React.createElement(Icon, { name: "play", size: 24, fill: "currentColor", className: "text-white ml-1" })
-                                            )
+                                            React.createElement('div', { className: "bg-orange-500 shadow-lg shadow-orange-500/40 rounded-full p-4 transform scale-90 group-hover:scale-100 transition-transform duration-300" }, React.createElement(Icon, { name: "play", size: 24, fill: "currentColor", className: "text-white ml-1" }))
                                         )
                                     ),
                                     React.createElement('div', { className: "flex flex-col px-1" },
                                         React.createElement('h3', { className: "text-white font-bold text-[14px] sm:text-[15px] truncate group-hover:text-orange-500 transition-colors" }, movie.title),
                                         React.createElement('div', { className: "flex items-center justify-between mt-1" },
                                             React.createElement('p', { className: "text-gray-500 text-[11px] font-medium" }, `${movie.year} • ${movie.genres?.[0] || '기타'}`),
-                                            React.createElement('div', { className: "flex items-center gap-1" },
-                                                React.createElement(Icon, { name: "star", size: 12, fill: "currentColor", className: "text-orange-500" }),
-                                                React.createElement('span', { className: "text-gray-300 text-[11px] font-black" }, getAverageRating(movie.id))
-                                            )
+                                            React.createElement('div', { className: "flex items-center gap-1" }, React.createElement(Icon, { name: "star", size: 12, fill: "currentColor", className: "text-orange-500" }), React.createElement('span', { className: "text-gray-300 text-[11px] font-black" }, getAverageRating(movie.id)))
                                         )
                                     )
                                 )
@@ -357,16 +339,11 @@
                         )
                     ),
                     !searchQuery && React.createElement('div', { className: "mt-20" },
-                        React.createElement(EditableTitle, { 
-                            id: "cast", currentTitle: categoryTitles.cast, 
-                            onAdd: () => { setEditingCast(null); setIsCastEditModalOpen(true); } 
-                        }),
+                        React.createElement(EditableTitle, { id: "cast", currentTitle: categoryTitles.cast, onAdd: () => { setEditingCast(null); setIsCastEditModalOpen(true); } }),
                         React.createElement('div', { className: "flex gap-10 overflow-x-auto pb-6 custom-scrollbar" },
                             castList.map(cast => (
                                 React.createElement('div', { key: cast.id, className: "flex flex-col items-center gap-4 min-w-[120px] cursor-pointer group", onClick: () => handleCastClick(cast) },
-                                    React.createElement('div', { className: "w-24 h-24 rounded-full overflow-hidden border-2 border-transparent group-hover:border-orange-500 transition-all shadow-xl" },
-                                        React.createElement('img', { src: cast.photo, className: "w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" })
-                                    ),
+                                    React.createElement('div', { className: "w-24 h-24 rounded-full overflow-hidden border-2 border-transparent group-hover:border-orange-500 transition-all shadow-xl" }, React.createElement('img', { src: cast.photo, className: "w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" })),
                                     React.createElement('span', { className: "text-sm font-bold text-gray-400 group-hover:text-white transition-colors" }, cast.name)
                                 )
                             ))
@@ -404,12 +381,8 @@
                     ),
                     React.createElement('div', { className: "px-8 md:px-20 py-20 grid grid-cols-1 lg:grid-cols-3 gap-20 max-w-7xl mx-auto" },
                         React.createElement('div', { className: "lg:col-span-2 space-y-16" },
-                            React.createElement('div', { className: "space-y-6" },
-                                React.createElement('h3', { className: "text-gray-600 text-[11px] font-black uppercase tracking-[0.4em] flex items-center gap-3" }, React.createElement('span', { className: "w-8 h-px bg-zinc-800" }), " Synopsis"),
-                                React.createElement('p', { className: "text-gray-300 text-sm sm:text-base leading-[1.8] font-medium whitespace-pre-line opacity-90" }, selectedMovie.description)
-                            ),
-                            React.createElement('div', { className: "space-y-8" },
-                                React.createElement('h3', { className: "text-xl font-bold text-white flex items-center gap-3" }, "등장인물", React.createElement('span', { className: "w-1.5 h-1.5 rounded-full bg-orange-500" })),
+                            React.createElement('div', { className: "space-y-6" }, React.createElement('h3', { className: "text-gray-600 text-[11px] font-black uppercase tracking-[0.4em] flex items-center gap-3" }, React.createElement('span', { className: "w-8 h-px bg-zinc-800" }), " Synopsis"), React.createElement('p', { className: "text-gray-300 text-sm sm:text-base leading-[1.8] font-medium whitespace-pre-line opacity-90" }, selectedMovie.description)),
+                            React.createElement('div', { className: "space-y-8" }, React.createElement('h3', { className: "text-xl font-bold text-white flex items-center gap-3" }, "등장인물", React.createElement('span', { className: "w-1.5 h-1.5 rounded-full bg-orange-500" })),
                                 React.createElement('div', { className: "flex gap-4 overflow-x-auto pb-4 custom-scrollbar" },
                                     (selectedMovie.cast || "").split(', ').map(actor => {
                                         const profile = castList.find(c => c.name === actor);
@@ -541,6 +514,7 @@
             const CommentModal = () => {
                 const [data, setData] = useState({ nickname: "", rating: 0, text: "" });
                 const submit = async () => {
+                    if (!auth.currentUser) return;
                     const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
                     await addDoc(commentsRef, { ...data, movieId: selectedMovie.id, date: new Date().toISOString().split('T')[0] });
                     setIsCommentModalOpen(false);
@@ -626,5 +600,4 @@
         root.render(React.createElement(App));
     </script>
 </body>
-
 </html>
