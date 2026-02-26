@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUGANEMA | 슈가 1주년 시네마</title>
+    <title>SUGANEMA | 영화 그 이상의 감동</title>
     
     <!-- 라이브러리 로드: React, ReactDOM, Firebase -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -58,7 +58,7 @@
 
         const { useState, useMemo, useEffect, useRef } = React;
 
-        // --- 아이콘 컴포넌트 (onClick 이벤트 전달 수정) ---
+        // --- 아이콘 컴포넌트 ---
         const Icon = ({ name, size = 24, strokeWidth = 2, className = "", fill = "none", ...props }) => {
             const icons = {
                 search: React.createElement('path', { d: "M21 21l-4.35-4.35M19 11a8 8 0 11-16 0 8 8 0 0116 0z" }),
@@ -103,7 +103,7 @@
                 width: size, height: size, viewBox: "0 0 24 24", fill: fill, 
                 stroke: "currentColor", strokeWidth: strokeWidth, 
                 strokeLinecap: "round", strokeLinejoin: "round", className: className,
-                ...props // 여기서 onClick 등 전달받은 속성을 svg 태그에 바인딩합니다.
+                ...props
             }, icons[name] || null);
         };
 
@@ -142,7 +142,7 @@
             )
         );
 
-        // --- 메인 App ---
+        // --- Main App ---
         const App = () => {
             const [user, setUser] = useState(null);
             const [view, setView] = useState('home'); 
@@ -162,6 +162,7 @@
 
             const [categoryTitles, setCategoryTitles] = useState({
                 movies: "화제의 작품 몰아보기",
+                event: "지난 인기작 재상영 이벤트",
                 cast: "화제의 출연진"
             });
             const [editingCategoryId, setEditingCategoryId] = useState(null);
@@ -204,12 +205,11 @@
                 const unsubConfig = onSnapshot(configRef, (ss) => {
                     const data = {};
                     ss.docs.forEach(doc => data[doc.id] = doc.data().title);
-                    if (data.movies || data.cast) {
-                        setCategoryTitles(prev => ({ 
-                            movies: data.movies || prev.movies, 
-                            cast: data.cast || prev.cast 
-                        }));
-                    }
+                    setCategoryTitles(prev => ({ 
+                        movies: data.movies || prev.movies, 
+                        event: data.event || prev.event,
+                        cast: data.cast || prev.cast 
+                    }));
                 }, (e) => console.error("Config Fetch Error", e));
 
                 return () => { unsubMovies(); unsubCast(); unsubComments(); unsubConfig(); };
@@ -285,6 +285,34 @@
                 } catch (e) {}
             };
 
+            // --- Movie Card Component ---
+            const MovieCard = ({ movie, small = false }) => (
+                React.createElement('div', { 
+                    key: movie.id, 
+                    className: "group relative flex flex-col gap-2 cursor-pointer transition-all duration-500 hover:-translate-y-2", 
+                    onClick: () => handleMovieClick(movie) 
+                },
+                    React.createElement('div', { className: `relative aspect-[2/3] overflow-hidden rounded-xl shadow-2xl border border-white/5 bg-zinc-900` },
+                        React.createElement('img', { src: movie.poster, alt: movie.title, className: "w-full h-full object-cover transition-transform duration-700 group-hover:scale-110", loading: "lazy" }),
+                        React.createElement('div', { className: "absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" },
+                            React.createElement('div', { className: `${small ? 'p-3' : 'p-4'} bg-orange-500 shadow-lg shadow-orange-500/40 rounded-full transform scale-90 group-hover:scale-100 transition-transform duration-300` }, 
+                                React.createElement(Icon, { name: "play", size: small ? 20 : 24, fill: "currentColor", className: "text-white ml-1" })
+                            )
+                        )
+                    ),
+                    React.createElement('div', { className: "flex flex-col px-1" },
+                        React.createElement('h3', { className: `text-white font-bold ${small ? 'text-[12px]' : 'text-[14px] sm:text-[15px]'} truncate group-hover:text-orange-500 transition-colors` }, movie.title),
+                        React.createElement('div', { className: "flex items-center justify-between mt-1" },
+                            React.createElement('p', { className: "text-gray-500 text-[11px] font-medium" }, `${movie.year} • ${movie.genres?.[0] || '기타'}`),
+                            React.createElement('div', { className: "flex items-center gap-1" }, 
+                                React.createElement(Icon, { name: "star", size: 12, fill: "currentColor", className: "text-orange-500" }), 
+                                React.createElement('span', { className: "text-gray-300 text-[11px] font-black" }, getAverageRating(movie.id))
+                            )
+                        )
+                    )
+                )
+            );
+
             // --- HomeView ---
             const HomeView = () => {
                 const [currentIndex, setCurrentIndex] = useState(0);
@@ -294,6 +322,10 @@
                     const timer = setInterval(() => setCurrentIndex(prev => (prev + 1) % bannerMovies.length), 6000);
                     return () => clearInterval(timer);
                 }, [bannerMovies.length]);
+
+                // Row filtering logic
+                const row1Movies = filteredMovies.filter(m => m.row1);
+                const row2Movies = filteredMovies.filter(m => m.row2);
 
                 return React.createElement('div', { className: "pt-28 pb-20 px-8 max-w-7xl mx-auto fade-in" },
                     !searchQuery && bannerMovies.length > 0 && React.createElement('div', { className: "relative w-full h-[480px] rounded-[2rem] overflow-hidden mb-16 shadow-2xl border border-white/5 bg-zinc-900" },
@@ -316,28 +348,26 @@
                             bannerMovies.map((_, idx) => React.createElement('div', { key: idx, onClick: () => setCurrentIndex(idx), className: `h-1.5 rounded-full transition-all duration-500 cursor-pointer ${idx === currentIndex ? 'w-10 bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]' : 'w-3 bg-white/20 hover:bg-white/40'}` }))
                         )
                     ),
+                    
+                    // Row 1 Category
                     React.createElement('div', { className: "mb-16" },
                         React.createElement(EditableTitle, { id: "movies", currentTitle: categoryTitles.movies }),
                         React.createElement('div', { className: "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-6 gap-y-12" },
-                            filteredMovies.map(movie => (
-                                React.createElement('div', { key: movie.id, className: "group relative flex flex-col gap-2 cursor-pointer transition-all duration-500 hover:-translate-y-2", onClick: () => handleMovieClick(movie) },
-                                    React.createElement('div', { className: "relative aspect-[2/3] overflow-hidden rounded-xl shadow-2xl border border-white/5 bg-zinc-900" },
-                                        React.createElement('img', { src: movie.poster, alt: movie.title, className: "w-full h-full object-cover transition-transform duration-700 group-hover:scale-110", loading: "lazy" }),
-                                        React.createElement('div', { className: "absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" },
-                                            React.createElement('div', { className: "bg-orange-500 shadow-lg shadow-orange-500/40 rounded-full p-4 transform scale-90 group-hover:scale-100 transition-transform duration-300" }, React.createElement(Icon, { name: "play", size: 24, fill: "currentColor", className: "text-white ml-1" }))
-                                        )
-                                    ),
-                                    React.createElement('div', { className: "flex flex-col px-1" },
-                                        React.createElement('h3', { className: "text-white font-bold text-[14px] sm:text-[15px] truncate group-hover:text-orange-500 transition-colors" }, movie.title),
-                                        React.createElement('div', { className: "flex items-center justify-between mt-1" },
-                                            React.createElement('p', { className: "text-gray-500 text-[11px] font-medium" }, `${movie.year} • ${movie.genres?.[0] || '기타'}`),
-                                            React.createElement('div', { className: "flex items-center gap-1" }, React.createElement(Icon, { name: "star", size: 12, fill: "currentColor", className: "text-orange-500" }), React.createElement('span', { className: "text-gray-300 text-[11px] font-black" }, getAverageRating(movie.id)))
-                                        )
-                                    )
-                                )
-                            ))
-                        )
+                            row1Movies.map(movie => React.createElement(MovieCard, { movie, key: movie.id }))
+                        ),
+                        row1Movies.length === 0 && React.createElement('p', { className: "text-zinc-600 italic text-sm py-10" }, "이 열에 등록된 작품이 없습니다.")
                     ),
+
+                    // Row 2 Category (Smaller Grid)
+                    !searchQuery && React.createElement('div', { className: "mb-20" },
+                        React.createElement(EditableTitle, { id: "event", currentTitle: categoryTitles.event }),
+                        React.createElement('div', { className: "grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-x-4 gap-y-10" },
+                            row2Movies.map(movie => React.createElement(MovieCard, { movie, key: movie.id, small: true }))
+                        ),
+                        row2Movies.length === 0 && React.createElement('p', { className: "text-zinc-600 italic text-sm py-10" }, "이 열에 등록된 작품이 없습니다.")
+                    ),
+
+                    // Cast List
                     !searchQuery && React.createElement('div', { className: "mt-20" },
                         React.createElement(EditableTitle, { id: "cast", currentTitle: categoryTitles.cast, onAdd: () => { setEditingCast(null); setIsCastEditModalOpen(true); } }),
                         React.createElement('div', { className: "flex gap-10 overflow-x-auto pb-6 custom-scrollbar" },
@@ -534,19 +564,37 @@
             };
 
             const EditModal = () => {
-                const [form, setForm] = useState(editingMovie || { title: "", year: "2024", genres: [], ageRating: "15+", duration: "", description: "", poster: "", backdrop: "", director: "", cast: "", isBanner: false });
+                const [form, setForm] = useState(editingMovie || { title: "", year: "2024", genres: [], ageRating: "15+", duration: "", description: "", poster: "", backdrop: "", director: "", cast: "", isBanner: false, row1: true, row2: false });
                 const genreOptions = ["SF", "액션", "로맨스", "스릴러", "드라마", "공포", "애니메이션", "뮤지컬"];
                 const toggleGenre = (g) => setForm(f => ({ ...f, genres: f.genres.includes(g) ? f.genres.filter(i => i !== g) : [...f.genres, g] }));
+                
+                // At least one row must be checked
+                const isSaveDisabled = !form.row1 && !form.row2;
+
                 return React.createElement('div', { className: "fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/60 backdrop-blur-xl" },
                     React.createElement('div', { className: "absolute inset-0", onClick: () => setIsEditModalOpen(false) }),
                     React.createElement('div', { className: "relative bg-zinc-950 w-full max-w-3xl rounded-[2.5rem] border border-white/10 shadow-3xl flex flex-col max-h-[90vh] overflow-hidden scale-in" },
                         React.createElement('div', { className: "p-8 border-b border-white/5 flex justify-between items-center bg-zinc-900/50" }, React.createElement('h3', { className: "text-white font-black text-2xl" }, editingMovie ? '작품 수정' : '새 작품 등록'), React.createElement('button', { onClick: () => setIsEditModalOpen(false), className: "p-2 bg-white/5 rounded-full hover:bg-red-500" }, React.createElement(Icon, { name: "x", size: 20 }))),
                         React.createElement('div', { className: "p-8 overflow-y-auto space-y-8 custom-scrollbar" },
                             React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-6" },
+                                
+                                // Row selection checkboxes
+                                React.createElement('div', { className: "col-span-2 grid grid-cols-2 gap-4" },
+                                    React.createElement('div', { className: `flex items-center gap-3 p-4 rounded-2xl border transition-all ${form.row1 ? 'bg-sky-500/10 border-sky-500/40' : 'bg-zinc-900 border-white/5'}` },
+                                        React.createElement('input', { type: "checkbox", id: "row1", className: "w-5 h-5 accent-sky-500 cursor-pointer", checked: form.row1, onChange: e => setForm({...form, row1: e.target.checked}) }),
+                                        React.createElement('label', { htmlFor: "row1", className: `text-sm font-bold cursor-pointer ${form.row1 ? 'text-sky-400' : 'text-zinc-500'}` }, "1열에 추가 (메인)")
+                                    ),
+                                    React.createElement('div', { className: `flex items-center gap-3 p-4 rounded-2xl border transition-all ${form.row2 ? 'bg-purple-500/10 border-purple-500/40' : 'bg-zinc-900 border-white/5'}` },
+                                        React.createElement('input', { type: "checkbox", id: "row2", className: "w-5 h-5 accent-purple-500 cursor-pointer", checked: form.row2, onChange: e => setForm({...form, row2: e.target.checked}) }),
+                                        React.createElement('label', { htmlFor: "row2", className: `text-sm font-bold cursor-pointer ${form.row2 ? 'text-purple-400' : 'text-zinc-500'}` }, "2열에 추가 (이벤트)")
+                                    )
+                                ),
+
                                 React.createElement('div', { className: "col-span-2 flex items-center gap-3 bg-orange-500/10 p-4 rounded-2xl border border-orange-500/20" },
                                     React.createElement('input', { type: "checkbox", id: "isBanner", className: "w-5 h-5 accent-orange-500 cursor-pointer", checked: form.isBanner, onChange: e => setForm({...form, isBanner: e.target.checked}) }),
                                     React.createElement('label', { htmlFor: "isBanner", className: "text-sm font-bold text-orange-500" }, "이 작품을 홈 화면 상단 배너(하이라이트)에 노출합니다")
                                 ),
+
                                 React.createElement('div', { className: "col-span-2 space-y-2" }, React.createElement('label', { className: "text-[10px] text-zinc-500 font-black uppercase tracking-widest" }, "Genre Selection"), React.createElement('div', { className: "flex flex-wrap gap-2" }, genreOptions.map(g => React.createElement('button', { key: g, onClick: () => toggleGenre(g), className: `px-4 py-2 rounded-xl text-xs font-black border ${form.genres.includes(g) ? 'bg-orange-500 border-orange-500 text-white' : 'border-white/10 text-zinc-500'}` }, g)))),
                                 React.createElement('input', { placeholder: "제목", className: "bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none font-bold", value: form.title, onChange: e => setForm({...form, title: e.target.value}) }),
                                 React.createElement('div', { className: "grid grid-cols-2 gap-3" }, React.createElement('input', { placeholder: "연도", className: "bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none font-bold", value: form.year, onChange: e => setForm({...form, year: e.target.value}) }), React.createElement('input', { placeholder: "시간", className: "bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none font-bold", value: form.duration, onChange: e => setForm({...form, duration: e.target.value}) })),
@@ -557,7 +605,13 @@
                                 React.createElement('input', { placeholder: "백드롭 URL", className: "bg-zinc-900/50 border border-white/10 p-4 rounded-2xl text-white outline-none text-xs", value: form.backdrop, onChange: e => setForm({...form, backdrop: e.target.value}) })
                             )
                         ),
-                        React.createElement('div', { className: "p-8 border-t border-white/5 bg-zinc-950" }, React.createElement('button', { onClick: () => saveMovie(form), className: "w-full bg-orange-600 py-4 rounded-2xl font-black text-white hover:bg-orange-500 shadow-xl" }, "저장하기"))
+                        React.createElement('div', { className: "p-8 border-t border-white/5 bg-zinc-950" }, 
+                            React.createElement('button', { 
+                                disabled: isSaveDisabled,
+                                onClick: () => saveMovie(form), 
+                                className: `w-full py-4 rounded-2xl font-black text-white shadow-xl transition-all ${isSaveDisabled ? 'bg-zinc-800 opacity-50 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-500 active:scale-95'}` 
+                            }, isSaveDisabled ? "열(1열 또는 2열)을 선택해야 저장할 수 있습니다" : "저장하기")
+                        )
                     )
                 );
             };
@@ -601,4 +655,3 @@
     </script>
 </body>
 </html>
-
